@@ -257,12 +257,147 @@ def ee_frame_quat(env: ManagerBasedRLEnv, ee_frame_cfg: SceneEntityCfg = SceneEn
     return ee_frame_quat
 
 
+# def gripper_pos(
+#     env: ManagerBasedRLEnv,
+#     robot_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+# ) -> torch.Tensor:
+#     """
+#     Obtain the versatile gripper position of both Gripper and Suction Cup.
+#     """
+#     robot: Articulation = env.scene[robot_cfg.name]
+
+#     if hasattr(env.scene, "surface_grippers") and len(env.scene.surface_grippers) > 0:
+#         # Handle multiple surface grippers by concatenating their states
+#         gripper_states = []
+#         for gripper_name, surface_gripper in env.scene.surface_grippers.items():
+#             gripper_states.append(surface_gripper.state.view(-1, 1))
+
+#         if len(gripper_states) == 1:
+#             return gripper_states[0]
+#         else:
+#             return torch.cat(gripper_states, dim=1)
+
+#     else:
+#         if hasattr(env.cfg, "gripper_joint_names"):
+#             gripper_joint_ids, _ = robot.find_joints(env.cfg.gripper_joint_names)
+#             assert len(gripper_joint_ids) == 2, "Observation gripper_pos only support parallel gripper for now"
+#             finger_joint_1 = robot.data.joint_pos[:, gripper_joint_ids[0]].clone().unsqueeze(1)
+#             finger_joint_2 = -1 * robot.data.joint_pos[:, gripper_joint_ids[1]].clone().unsqueeze(1)
+#             return torch.cat((finger_joint_1, finger_joint_2), dim=1)
+#         else:
+#             raise NotImplementedError("[Error] Cannot find gripper_joint_names in the environment config")
+
+
+# def object_grasped(
+#     env: ManagerBasedRLEnv,
+#     robot_cfg: SceneEntityCfg,
+#     ee_frame_cfg: SceneEntityCfg,
+#     object_cfg: SceneEntityCfg,
+#     diff_threshold: float = 0.06,
+# ) -> torch.Tensor:
+#     """Check if an object is grasped by the specified robot."""
+
+#     robot: Articulation = env.scene[robot_cfg.name]
+#     ee_frame: FrameTransformer = env.scene[ee_frame_cfg.name]
+#     object: RigidObject = env.scene[object_cfg.name]
+
+#     object_pos = object.data.root_pos_w
+#     end_effector_pos = ee_frame.data.target_pos_w[:, 0, :]
+#     pose_diff = torch.linalg.vector_norm(object_pos - end_effector_pos, dim=1)
+
+#     if hasattr(env.scene, "surface_grippers") and len(env.scene.surface_grippers) > 0:
+#         surface_gripper = env.scene.surface_grippers["surface_gripper"]
+#         suction_cup_status = surface_gripper.state.view(-1, 1)  # 1: closed, 0: closing, -1: open
+#         suction_cup_is_closed = (suction_cup_status == 1).to(torch.float32)
+#         grasped = torch.logical_and(suction_cup_is_closed, pose_diff < diff_threshold)
+
+#     else:
+#         if hasattr(env.cfg, "gripper_joint_names"):
+#             gripper_joint_ids, _ = robot.find_joints(env.cfg.gripper_joint_names)
+#             assert len(gripper_joint_ids) == 2, "Observations only support parallel gripper for now"
+
+#             grasped = torch.logical_and(
+#                 pose_diff < diff_threshold,
+#                 torch.abs(
+#                     robot.data.joint_pos[:, gripper_joint_ids[0]]
+#                     - torch.tensor(env.cfg.gripper_open_val, dtype=torch.float32).to(env.device)
+#                 )
+#                 > env.cfg.gripper_threshold,
+#             )
+#             grasped = torch.logical_and(
+#                 grasped,
+#                 torch.abs(
+#                     robot.data.joint_pos[:, gripper_joint_ids[1]]
+#                     - torch.tensor(env.cfg.gripper_open_val, dtype=torch.float32).to(env.device)
+#                 )
+#                 > env.cfg.gripper_threshold,
+#             )
+
+#     return grasped
+
+
+# def object_stacked(
+#     env: ManagerBasedRLEnv,
+#     robot_cfg: SceneEntityCfg,
+#     upper_object_cfg: SceneEntityCfg,
+#     lower_object_cfg: SceneEntityCfg,
+#     xy_threshold: float = 0.05,
+#     height_threshold: float = 0.005,
+#     height_diff: float = 0.0468,
+# ) -> torch.Tensor:
+#     """Check if an object is stacked by the specified robot."""
+
+#     robot: Articulation = env.scene[robot_cfg.name]
+#     upper_object: RigidObject = env.scene[upper_object_cfg.name]
+#     lower_object: RigidObject = env.scene[lower_object_cfg.name]
+
+#     pos_diff = upper_object.data.root_pos_w - lower_object.data.root_pos_w
+#     height_dist = torch.linalg.vector_norm(pos_diff[:, 2:], dim=1)
+#     xy_dist = torch.linalg.vector_norm(pos_diff[:, :2], dim=1)
+
+#     stacked = torch.logical_and(xy_dist < xy_threshold, (height_dist - height_diff) < height_threshold)
+
+#     if hasattr(env.scene, "surface_grippers") and len(env.scene.surface_grippers) > 0:
+#         surface_gripper = env.scene.surface_grippers["surface_gripper"]
+#         suction_cup_status = surface_gripper.state.view(-1, 1)  # 1: closed, 0: closing, -1: open
+#         suction_cup_is_open = (suction_cup_status == -1).to(torch.float32)
+#         stacked = torch.logical_and(suction_cup_is_open, stacked)
+
+#     else:
+#         if hasattr(env.cfg, "gripper_joint_names"):
+#             gripper_joint_ids, _ = robot.find_joints(env.cfg.gripper_joint_names)
+#             assert len(gripper_joint_ids) == 2, "Observations only support parallel gripper for now"
+#             stacked = torch.logical_and(
+#                 torch.isclose(
+#                     robot.data.joint_pos[:, gripper_joint_ids[0]],
+#                     torch.tensor(env.cfg.gripper_open_val, dtype=torch.float32).to(env.device),
+#                     atol=1e-4,
+#                     rtol=1e-4,
+#                 ),
+#                 stacked,
+#             )
+#             stacked = torch.logical_and(
+#                 torch.isclose(
+#                     robot.data.joint_pos[:, gripper_joint_ids[1]],
+#                     torch.tensor(env.cfg.gripper_open_val, dtype=torch.float32).to(env.device),
+#                     atol=1e-4,
+#                     rtol=1e-4,
+#                 ),
+#                 stacked,
+#             )
+#         else:
+#             raise ValueError("No gripper_joint_names found in environment config")
+
+#     return stacked
+
+
 def gripper_pos(
     env: ManagerBasedRLEnv,
     robot_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
     """
     Obtain the versatile gripper position of both Gripper and Suction Cup.
+    This function is modified to support both 1-DOF and 2-DOF grippers.
     """
     robot: Articulation = env.scene[robot_cfg.name]
 
@@ -280,10 +415,19 @@ def gripper_pos(
     else:
         if hasattr(env.cfg, "gripper_joint_names"):
             gripper_joint_ids, _ = robot.find_joints(env.cfg.gripper_joint_names)
-            assert len(gripper_joint_ids) == 2, "Observation gripper_pos only support parallel gripper for now"
-            finger_joint_1 = robot.data.joint_pos[:, gripper_joint_ids[0]].clone().unsqueeze(1)
-            finger_joint_2 = -1 * robot.data.joint_pos[:, gripper_joint_ids[1]].clone().unsqueeze(1)
-            return torch.cat((finger_joint_1, finger_joint_2), dim=1)
+            # MODIFIED: Allow 1 or 2 gripper joints
+            assert len(gripper_joint_ids) > 0, "Could not find any joints for the gripper."
+
+            if len(gripper_joint_ids) == 1:
+                # For a 1-DOF gripper, return the position of that single joint.
+                return robot.data.joint_pos[:, gripper_joint_ids].clone()
+            elif len(gripper_joint_ids) == 2:
+                # For a 2-DOF parallel gripper, return the positions of both fingers.
+                finger_joint_1 = robot.data.joint_pos[:, gripper_joint_ids[0]].clone().unsqueeze(1)
+                finger_joint_2 = -1 * robot.data.joint_pos[:, gripper_joint_ids[1]].clone().unsqueeze(1)
+                return torch.cat((finger_joint_1, finger_joint_2), dim=1)
+            else:
+                raise NotImplementedError(f"Gripper with {len(gripper_joint_ids)} joints is not supported.")
         else:
             raise NotImplementedError("[Error] Cannot find gripper_joint_names in the environment config")
 
@@ -295,7 +439,10 @@ def object_grasped(
     object_cfg: SceneEntityCfg,
     diff_threshold: float = 0.06,
 ) -> torch.Tensor:
-    """Check if an object is grasped by the specified robot."""
+    """
+    Check if an object is grasped by the specified robot.
+    This function is modified to support both 1-DOF and 2-DOF grippers.
+    """
 
     robot: Articulation = env.scene[robot_cfg.name]
     ee_frame: FrameTransformer = env.scene[ee_frame_cfg.name]
@@ -314,24 +461,26 @@ def object_grasped(
     else:
         if hasattr(env.cfg, "gripper_joint_names"):
             gripper_joint_ids, _ = robot.find_joints(env.cfg.gripper_joint_names)
-            assert len(gripper_joint_ids) == 2, "Observations only support parallel gripper for now"
+            # MODIFIED: Allow any number of gripper joints > 0
+            assert len(gripper_joint_ids) > 0, "Could not find any joints for the gripper."
 
-            grasped = torch.logical_and(
-                pose_diff < diff_threshold,
-                torch.abs(
-                    robot.data.joint_pos[:, gripper_joint_ids[0]]
-                    - torch.tensor(env.cfg.gripper_open_val, dtype=torch.float32).to(env.device)
+            # General logic for "is closed": all gripper joints must be past the 'closed' threshold
+            is_closed = torch.ones_like(pose_diff, dtype=torch.bool)
+            for joint_id in gripper_joint_ids:
+                # A joint is considered "closed" if its position is far enough from the fully open value.
+                joint_is_closed = (
+                    torch.abs(
+                        robot.data.joint_pos[:, joint_id]
+                        - torch.tensor(env.cfg.gripper_open_val, dtype=torch.float32).to(env.device)
+                    )
+                    > env.cfg.gripper_threshold
                 )
-                > env.cfg.gripper_threshold,
-            )
-            grasped = torch.logical_and(
-                grasped,
-                torch.abs(
-                    robot.data.joint_pos[:, gripper_joint_ids[1]]
-                    - torch.tensor(env.cfg.gripper_open_val, dtype=torch.float32).to(env.device)
-                )
-                > env.cfg.gripper_threshold,
-            )
+                is_closed = torch.logical_and(is_closed, joint_is_closed)
+
+            # Grasped if the object is close AND the gripper is considered closed.
+            grasped = torch.logical_and(pose_diff < diff_threshold, is_closed)
+        else:
+            raise ValueError("No gripper_joint_names found in environment config")
 
     return grasped
 
@@ -345,7 +494,10 @@ def object_stacked(
     height_threshold: float = 0.005,
     height_diff: float = 0.0468,
 ) -> torch.Tensor:
-    """Check if an object is stacked by the specified robot."""
+    """
+    Check if an object is stacked by the specified robot.
+    This function is modified to support both 1-DOF and 2-DOF grippers.
+    """
 
     robot: Articulation = env.scene[robot_cfg.name]
     upper_object: RigidObject = env.scene[upper_object_cfg.name]
@@ -366,29 +518,29 @@ def object_stacked(
     else:
         if hasattr(env.cfg, "gripper_joint_names"):
             gripper_joint_ids, _ = robot.find_joints(env.cfg.gripper_joint_names)
-            assert len(gripper_joint_ids) == 2, "Observations only support parallel gripper for now"
-            stacked = torch.logical_and(
-                torch.isclose(
-                    robot.data.joint_pos[:, gripper_joint_ids[0]],
+            # MODIFIED: Allow any number of gripper joints > 0
+            assert len(gripper_joint_ids) > 0, "Could not find any joints for the gripper."
+
+            # General logic for "is open": all gripper joints must be very close to the open value.
+            is_open = torch.ones_like(stacked, dtype=torch.bool)
+            for joint_id in gripper_joint_ids:
+                joint_is_open = torch.isclose(
+                    robot.data.joint_pos[:, joint_id],
                     torch.tensor(env.cfg.gripper_open_val, dtype=torch.float32).to(env.device),
                     atol=1e-4,
                     rtol=1e-4,
-                ),
-                stacked,
-            )
-            stacked = torch.logical_and(
-                torch.isclose(
-                    robot.data.joint_pos[:, gripper_joint_ids[1]],
-                    torch.tensor(env.cfg.gripper_open_val, dtype=torch.float32).to(env.device),
-                    atol=1e-4,
-                    rtol=1e-4,
-                ),
-                stacked,
-            )
+                )
+                is_open = torch.logical_and(is_open, joint_is_open)
+
+            # Stacked if the object positions match AND the gripper is open.
+            stacked = torch.logical_and(is_open, stacked)
         else:
             raise ValueError("No gripper_joint_names found in environment config")
 
     return stacked
+
+
+
 
 
 def cube_poses_in_base_frame(

@@ -21,6 +21,77 @@ if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
 
 
+# def cubes_stacked(
+#     env: ManagerBasedRLEnv,
+#     robot_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+#     cube_1_cfg: SceneEntityCfg = SceneEntityCfg("cube_1"),
+#     cube_2_cfg: SceneEntityCfg = SceneEntityCfg("cube_2"),
+#     cube_3_cfg: SceneEntityCfg = SceneEntityCfg("cube_3"),
+#     xy_threshold: float = 0.04,
+#     height_threshold: float = 0.005,
+#     height_diff: float = 0.0468,
+#     atol=0.0001,
+#     rtol=0.0001,
+# ):
+#     robot: Articulation = env.scene[robot_cfg.name]
+#     cube_1: RigidObject = env.scene[cube_1_cfg.name]
+#     cube_2: RigidObject = env.scene[cube_2_cfg.name]
+#     cube_3: RigidObject = env.scene[cube_3_cfg.name]
+
+#     pos_diff_c12 = cube_1.data.root_pos_w - cube_2.data.root_pos_w
+#     pos_diff_c23 = cube_2.data.root_pos_w - cube_3.data.root_pos_w
+
+#     # Compute cube position difference in x-y plane
+#     xy_dist_c12 = torch.norm(pos_diff_c12[:, :2], dim=1)
+#     xy_dist_c23 = torch.norm(pos_diff_c23[:, :2], dim=1)
+
+#     # Compute cube height difference
+#     h_dist_c12 = torch.norm(pos_diff_c12[:, 2:], dim=1)
+#     h_dist_c23 = torch.norm(pos_diff_c23[:, 2:], dim=1)
+
+#     # Check cube positions
+#     stacked = torch.logical_and(xy_dist_c12 < xy_threshold, xy_dist_c23 < xy_threshold)
+#     stacked = torch.logical_and(h_dist_c12 - height_diff < height_threshold, stacked)
+#     stacked = torch.logical_and(pos_diff_c12[:, 2] < 0.0, stacked)
+#     stacked = torch.logical_and(h_dist_c23 - height_diff < height_threshold, stacked)
+#     stacked = torch.logical_and(pos_diff_c23[:, 2] < 0.0, stacked)
+
+#     # Check gripper positions
+#     if hasattr(env.scene, "surface_grippers") and len(env.scene.surface_grippers) > 0:
+#         surface_gripper = env.scene.surface_grippers["surface_gripper"]
+#         suction_cup_status = surface_gripper.state.view(-1, 1)  # 1: closed, 0: closing, -1: open
+#         suction_cup_is_open = (suction_cup_status == -1).to(torch.float32)
+#         stacked = torch.logical_and(suction_cup_is_open, stacked)
+
+#     else:
+#         if hasattr(env.cfg, "gripper_joint_names"):
+#             gripper_joint_ids, _ = robot.find_joints(env.cfg.gripper_joint_names)
+#             assert len(gripper_joint_ids) == 2, "Terminations only support parallel gripper for now"
+
+#             stacked = torch.logical_and(
+#                 torch.isclose(
+#                     robot.data.joint_pos[:, gripper_joint_ids[0]],
+#                     torch.tensor(env.cfg.gripper_open_val, dtype=torch.float32).to(env.device),
+#                     atol=atol,
+#                     rtol=rtol,
+#                 ),
+#                 stacked,
+#             )
+#             stacked = torch.logical_and(
+#                 torch.isclose(
+#                     robot.data.joint_pos[:, gripper_joint_ids[1]],
+#                     torch.tensor(env.cfg.gripper_open_val, dtype=torch.float32).to(env.device),
+#                     atol=atol,
+#                     rtol=rtol,
+#                 ),
+#                 stacked,
+#             )
+#         else:
+#             raise ValueError("No gripper_joint_names found in environment config")
+
+#     return stacked
+
+
 def cubes_stacked(
     env: ManagerBasedRLEnv,
     robot_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
@@ -33,6 +104,10 @@ def cubes_stacked(
     atol=0.0001,
     rtol=0.0001,
 ):
+    """
+    Check if all three cubes are stacked.
+    This function is modified to support both 1-DOF and 2-DOF grippers.
+    """
     robot: Articulation = env.scene[robot_cfg.name]
     cube_1: RigidObject = env.scene[cube_1_cfg.name]
     cube_2: RigidObject = env.scene[cube_2_cfg.name]
@@ -66,26 +141,22 @@ def cubes_stacked(
     else:
         if hasattr(env.cfg, "gripper_joint_names"):
             gripper_joint_ids, _ = robot.find_joints(env.cfg.gripper_joint_names)
-            assert len(gripper_joint_ids) == 2, "Terminations only support parallel gripper for now"
+            # MODIFIED: Allow any number of gripper joints > 0
+            assert len(gripper_joint_ids) > 0, "Could not find any joints for the gripper."
 
-            stacked = torch.logical_and(
-                torch.isclose(
-                    robot.data.joint_pos[:, gripper_joint_ids[0]],
+            # General logic for "is open": all gripper joints must be very close to the open value.
+            is_open = torch.ones_like(stacked, dtype=torch.bool)
+            for joint_id in gripper_joint_ids:
+                joint_is_open = torch.isclose(
+                    robot.data.joint_pos[:, joint_id],
                     torch.tensor(env.cfg.gripper_open_val, dtype=torch.float32).to(env.device),
                     atol=atol,
                     rtol=rtol,
-                ),
-                stacked,
-            )
-            stacked = torch.logical_and(
-                torch.isclose(
-                    robot.data.joint_pos[:, gripper_joint_ids[1]],
-                    torch.tensor(env.cfg.gripper_open_val, dtype=torch.float32).to(env.device),
-                    atol=atol,
-                    rtol=rtol,
-                ),
-                stacked,
-            )
+                )
+                is_open = torch.logical_and(is_open, joint_is_open)
+
+            # Success if cubes are stacked AND the gripper is open.
+            stacked = torch.logical_and(is_open, stacked)
         else:
             raise ValueError("No gripper_joint_names found in environment config")
 

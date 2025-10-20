@@ -3,6 +3,8 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+# This file is adapted for the SO101 robot based on its specific configuration.
+# SO101 Configuration: 5-axis arm + 1-axis gripper.
 
 from __future__ import annotations
 
@@ -11,7 +13,8 @@ import random
 import torch
 from typing import TYPE_CHECKING
 
-from isaacsim.core.utils.extensions import enable_extension
+# isaacsim.core.utils.extensions는 필요에 따라 주석 해제하여 사용
+# from isaacsim.core.utils.extensions import enable_extension
 
 import isaaclab.utils.math as math_utils
 from isaaclab.assets import Articulation, AssetBase
@@ -21,12 +24,13 @@ if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedEnv
 
 
-def set_default_joint_pose(ㅡ
+def set_default_joint_pose(
     env: ManagerBasedEnv,
     env_ids: torch.Tensor,
     default_pose: torch.Tensor,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ):
+    """로봇의 기본 관절 자세를 설정합니다. 이 함수는 로봇에 독립적이므로 수정할 필요가 없습니다."""
     # Set the default pose for robots in all envs
     asset = env.scene[asset_cfg.name]
     asset.data.default_joint_pos = torch.tensor(default_pose, device=env.device).repeat(env.num_envs, 1)
@@ -39,6 +43,7 @@ def randomize_joint_by_gaussian_offset(
     std: float,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ):
+    """로봇의 기본 자세에 무작위 오프셋을 추가합니다. SO101 로봇(5-arm, 1-gripper)에 맞게 수정되었습니다."""
     asset: Articulation = env.scene[asset_cfg.name]
 
     # Add gaussian noise to joint states
@@ -50,14 +55,19 @@ def randomize_joint_by_gaussian_offset(
     joint_pos_limits = asset.data.soft_joint_pos_limits[env_ids]
     joint_pos = joint_pos.clamp_(joint_pos_limits[..., 0], joint_pos_limits[..., 1])
 
-    # Don't noise the gripper poses
-    joint_pos[:, -2:] = asset.data.default_joint_pos[env_ids, -2:]
+    # -- [수정/확인된 부분] --
+    # 그리퍼 관절(마지막 1개)에는 노이즈를 적용하지 않도록 처리합니다.
+    # SO101_CFG에 따라 로봇은 총 6개의 관절을 가지며, 마지막 관절이 그리퍼입니다.
+    # 따라서 joint_pos 텐서의 마지막 열(column)의 값을 노이즈가 적용되기 전의 기본값으로 되돌립니다.
+    joint_pos[:, -1:] = asset.data.default_joint_pos[env_ids, -1:]
 
     # Set into the physics simulation
     asset.set_joint_position_target(joint_pos, env_ids=env_ids)
     asset.set_joint_velocity_target(joint_vel, env_ids=env_ids)
     asset.write_joint_state_to_sim(joint_pos, joint_vel, env_ids=env_ids)
-
+    
+    
+    
 
 def sample_random_color(base=(0.75, 0.75, 0.75), variation=0.1):
     """

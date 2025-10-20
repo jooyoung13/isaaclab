@@ -83,6 +83,7 @@ def main() -> None:
     env_cfg = parse_env_cfg(args_cli.task, device=args_cli.device, num_envs=args_cli.num_envs)
     env_cfg.env_name = args_cli.task
     # modify configuration
+    
     env_cfg.terminations.time_out = None
     if "Lift" in args_cli.task:
         # set the resampling time range to large number to avoid resampling
