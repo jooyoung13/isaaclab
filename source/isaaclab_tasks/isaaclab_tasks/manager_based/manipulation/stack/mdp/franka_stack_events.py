@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedEnv
 
 
-def set_default_joint_pose(ㅡ
+def set_default_joint_pose(
     env: ManagerBasedEnv,
     env_ids: torch.Tensor,
     default_pose: torch.Tensor,
