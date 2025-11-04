@@ -26,7 +26,8 @@ from . import so101_stack_joint_pos_env_cfg
 # from path.to.your.assets import SO101_HIGH_PD_CFG  # isort: skip
 from isaaclab_assets.robots.so101 import SO101_CFG  # isort: skip
 
-
+##출력용으로 추가
+import omni.log
 
 @configclass
 class SO101CubeStackIKEnvCfg(so101_stack_joint_pos_env_cfg.SO101CubeStackEnvCfg):
@@ -40,6 +41,14 @@ class SO101CubeStackIKEnvCfg(so101_stack_joint_pos_env_cfg.SO101CubeStackEnvCfg)
         # --- [구조 일치] 씬의 로봇 설정을 IK용 고이득(High-PD) 설정으로 통째로 교체합니다. ---
         # 이 방식은 기존 설정을 코드 내에서 수정하는 대신, 준비된 설정을 불러와 대체합니다.
         self.scene.robot = SO101_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        
+        # !! 바로 여기에 로봇 위치(pos) 덮어쓰기 코드를 추가 !!
+        self.scene.robot.init_state.pos = [0.0, 0.0, -0.02] # <-- 원하는 X, Y, Z 값으로 수정
+        
+        omni.log.warn("=============================================================")
+        omni.log.warn(f"[DEBUG] STIFFNESS SET TO: {self.scene.robot.actuators['arm'].stiffness}")
+        omni.log.warn(f"[DEBUG] DAMPING SET TO: {self.scene.robot.actuators['arm'].damping}")
+        omni.log.warn("=============================================================")
 
         # 팔 행동(Arm Action)을 IK 제어로 덮어씁니다.
         self.actions.arm_action = DifferentialInverseKinematicsActionCfg(

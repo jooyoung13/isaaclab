@@ -44,7 +44,7 @@ class EventCfg:
             # SO101 로봇의 관절 수(6개)에 맞는 기본 자세를 정의합니다.
             # 이 값은 로봇이 작업을 시작하기에 적절한 '준비 자세'입니다. (필요시 튜닝)
             # 순서: shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll, gripper
-            "default_pose": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], # gripper는 닫힌 상태(0.0)로 시작
+            "default_pose": [0.0, 0.0, 0.0, 0.7071*2, 0.0, 0.0], # gripper는 닫힌 상태(0.0)로 시작
         },
     )
 
@@ -64,7 +64,7 @@ class EventCfg:
         func=so101_stack_events.randomize_object_pose,
         mode="reset",
         params={
-            "pose_range": {"x": (0.4, 0.6), "y": (-0.10, 0.10), "z": (0.0203, 0.0203), "yaw": (-1.0, 1.0)},
+            "pose_range": {"x": (0.1, 0.3), "y": (-0.10, 0.10), "z": (0.0203, 0.0203), "yaw": (-1.0, 1.0)},
             "min_separation": 0.1,
             "asset_cfgs": [SceneEntityCfg("cube_1"), SceneEntityCfg("cube_2"), SceneEntityCfg("cube_3")],
         },
@@ -122,8 +122,8 @@ class SO101CubeStackEnvCfg(StackEnvCfg): # --- [수정 3] 클래스 이름 변�
 
         # 큐브 속성 및 스폰 설정은 로봇과 무관하므로 그대로 둡니다.
         cube_properties = RigidBodyPropertiesCfg(
-            solver_position_iteration_count=16,
-            solver_velocity_iteration_count=1,
+            solver_position_iteration_count=32,
+            solver_velocity_iteration_count=10,
             max_angular_velocity=1000.0,
             max_linear_velocity=1000.0,
             max_depenetration_velocity=5.0,
@@ -131,30 +131,33 @@ class SO101CubeStackEnvCfg(StackEnvCfg): # --- [수정 3] 클래스 이름 변�
         )
         self.scene.cube_1 = RigidObjectCfg(
             prim_path="{ENV_REGEX_NS}/Cube_1",
-            init_state=RigidObjectCfg.InitialStateCfg(pos=[0.4, 0.0, 0.0203], rot=[1, 0, 0, 0]),
+            init_state=RigidObjectCfg.InitialStateCfg(pos=[0.2, 0.0, 0.0203], rot=[1, 0, 0, 0]),
             spawn=UsdFileCfg(
                 usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Blocks/blue_block.usd",
-                scale=(1.0, 1.0, 1.0),
+                # scale=(1.0, 1.0, 1.0),
+                scale=(0.7, 0.7, 0.7),
                 rigid_props=cube_properties,
                 semantic_tags=[("class", "cube_1")],
             ),
         )
         self.scene.cube_2 = RigidObjectCfg(
             prim_path="{ENV_REGEX_NS}/Cube_2",
-            init_state=RigidObjectCfg.InitialStateCfg(pos=[0.55, 0.05, 0.0203], rot=[1, 0, 0, 0]),
+            init_state=RigidObjectCfg.InitialStateCfg(pos=[0.25, 0.05, 0.0203], rot=[1, 0, 0, 0]),
             spawn=UsdFileCfg(
                 usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Blocks/red_block.usd",
-                scale=(1.0, 1.0, 1.0),
+                scale=(0.7, 0.7, 0.7),
+                # scale=(1.0, 1.0, 1.0),
                 rigid_props=cube_properties,
                 semantic_tags=[("class", "cube_2")],
             ),
         )
         self.scene.cube_3 = RigidObjectCfg(
             prim_path="{ENV_REGEX_NS}/Cube_3",
-            init_state=RigidObjectCfg.InitialStateCfg(pos=[0.60, -0.1, 0.0203], rot=[1, 0, 0, 0]),
+            init_state=RigidObjectCfg.InitialStateCfg(pos=[0.30, -0.1, 0.0203], rot=[1, 0, 0, 0]),
             spawn=UsdFileCfg(
                 usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Blocks/green_block.usd",
-                scale=(1.0, 1.0, 1.0),
+                scale=(0.7, 0.7, 0.7),
+                # scale=(1.0, 1.0, 1.0),
                 rigid_props=cube_properties,
                 semantic_tags=[("class", "cube_3")],
             ),

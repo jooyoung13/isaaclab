@@ -19,6 +19,9 @@ from . import stack_joint_pos_env_cfg
 ##
 from isaaclab_assets.robots.franka import FRANKA_PANDA_HIGH_PD_CFG  # isort: skip
 
+##출력용으로 추가
+import omni.log
+
 
 @configclass
 class FrankaCubeStackEnvCfg(stack_joint_pos_env_cfg.FrankaCubeStackEnvCfg):
@@ -29,6 +32,21 @@ class FrankaCubeStackEnvCfg(stack_joint_pos_env_cfg.FrankaCubeStackEnvCfg):
         # Set Franka as robot
         # We switch here to a stiffer PD controller for IK tracking to be better.
         self.scene.robot = FRANKA_PANDA_HIGH_PD_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        
+        
+        # !! 500/90 덮어쓰기 코드 (이 4줄이 있는지 확인) !!
+        # self.scene.robot.actuators["panda_shoulder"].stiffness = 500.0
+        # self.scene.robot.actuators["panda_shoulder"].damping = 90.0
+        # self.scene.robot.actuators["panda_forearm"].stiffness = 500.0
+        # self.scene.robot.actuators["panda_forearm"].damping = 90.0
+
+        # !! 여기에 강제 출력 코드 4줄을 추가합니다 !!
+        omni.log.warn("=============================================================")
+        omni.log.warn(f"[DEBUG] STIFFNESS SET TO: {self.scene.robot.actuators['panda_shoulder'].stiffness}")
+        omni.log.warn(f"[DEBUG] DAMPING SET TO: {self.scene.robot.actuators['panda_shoulder'].damping}")
+        omni.log.warn("=============================================================")
+        
+        
 
         # Set actions for the specific robot type (franka)
         self.actions.arm_action = DifferentialInverseKinematicsActionCfg(

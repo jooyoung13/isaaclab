@@ -197,12 +197,12 @@ class Se3Keyboard(DeviceBase):
             "Q": np.asarray([0.0, 0.0, 1.0]) * self.pos_sensitivity,
             "E": np.asarray([0.0, 0.0, -1.0]) * self.pos_sensitivity,
             # roll (around x-axis)
-            "Z": np.asarray([1.0, 0.0, 0.0]) * self.rot_sensitivity,
-            "X": np.asarray([-1.0, 0.0, 0.0]) * self.rot_sensitivity,
+            "Z": np.asarray([10.0, 0.0, 0.0]) * self.rot_sensitivity,
+            "X": np.asarray([-10.0, 0.0, 0.0]) * self.rot_sensitivity,
             # pitch (around y-axis)
-            "T": np.asarray([0.0, 1.0, 0.0]) * self.rot_sensitivity,
-            "G": np.asarray([0.0, -1.0, 0.0]) * self.rot_sensitivity,
+            "T": np.asarray([0.0, 10.0, 0.0]) * self.rot_sensitivity,
+            "G": np.asarray([0.0, -10.0, 0.0]) * self.rot_sensitivity,
             # yaw (around z-axis)
-            "C": np.asarray([0.0, 0.0, 1.0]) * self.rot_sensitivity,
-            "V": np.asarray([0.0, 0.0, -1.0]) * self.rot_sensitivity,
+            "C": np.asarray([0.0, 0.0, 10.0]) * self.rot_sensitivity,
+            "V": np.asarray([0.0, 0.0, -10.0]) * self.rot_sensitivity,
         }

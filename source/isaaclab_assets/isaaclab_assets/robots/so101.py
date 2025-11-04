@@ -22,13 +22,13 @@ SO101_CFG = ArticulationCfg(
         # usd_path="/home/jy/Downloads/so101_jy.usd",
         activate_contact_sensors=False,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
-            disable_gravity=False,
+            disable_gravity=True,
             max_depenetration_velocity=5.0,
         ),
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
             enabled_self_collisions=True,
-            solver_position_iteration_count=8,
-            solver_velocity_iteration_count=0,
+            solver_position_iteration_count=32,
+            solver_velocity_iteration_count=4,
         ),
     ),
     # 초기 상태 설정: 제공해주신 조인트 이름을 사용해 초기 자세를 0으로 설정합니다.
@@ -56,17 +56,17 @@ SO101_CFG = ArticulationCfg(
                 "wrist_roll",
             ],
             # 아래 값들은 시작점이며, workflow_tool로 테스트하며 튜닝해야 합니다.
-            effort_limit_sim=500.0,  # 최대 토크 (단위: Nm)
-            stiffness=1500.0,         # P 게인 (목표 각도에 얼마나 강하게 도달할지)
-            damping=60.0,            # D 게인 (진동을 얼마나 억제할지)
+            effort_limit_sim=50.0,  # 최대 토크 (단위: Nm)
+            stiffness=400.0,         # P 게인 (목표 각도에 얼마나 강하게 도달할지)
+            damping=80.0,            # D 게인 (진동을 얼마나 억제할지)
         ),
         "gripper": ImplicitActuatorCfg(
             # 6번 조인트를 'gripper' 그룹으로 지정합니다.
             joint_names_expr=["gripper"],
             # 그리퍼는 보통 더 강한 힘이 필요하므로 다른 값을 설정할 수 있습니다.
-            effort_limit_sim=50.0,
-            stiffness=200.0,
-            damping=10.0,
+            effort_limit_sim=150.0,
+            stiffness=100.0,
+            damping=40.0,
         ),
     },
     soft_joint_pos_limit_factor=1.0,
